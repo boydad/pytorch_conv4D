@@ -37,17 +37,18 @@ def init(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
         x.data = bias
         return x
 
-    padding = ks - 1
+    assert ks % 2 == 1, 'Since PT 1.5 works only with odd kernel size'
+
     padding_mode = 'circular'
     x = torch.randn(bs, inChans, *((L,)*Nd)).to(device)
 
     convPT = nn.Conv3d(
-        inChans, outChans, ks, stride=1, padding=padding,
+        inChans, outChans, ks, stride=1, padding=(ks-1)//2,
         bias=isBias, padding_mode=padding_mode
         ).to(device)
 
     conv = Conv4dClass(
-        inChans, outChans, Nd=Nd, kernel_size=ks, padding=padding, bias=isBias,
+        inChans, outChans, Nd=Nd, kernel_size=ks, padding=ks-1, bias=isBias,
         padding_mode=padding_mode,
         kernel_initializer=partial(init_groups, weights=tuple(convPT.parameters())[0])
         if Conv4dClass.__name__ == 'Conv4d_groups'
@@ -64,7 +65,7 @@ def init(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
 @pytest.mark.parametrize('Nd', [3])
 @pytest.mark.parametrize('bs', [256])
 # ks = 2 is not working due to bug in pytorch.nn.conv2d with padding=1
-@pytest.mark.parametrize('ks', [1, 3, 4, 5, 8])
+@pytest.mark.parametrize('ks', [3, 5, 7])
 @pytest.mark.parametrize('isBias', [True, False])
 @pytest.mark.parametrize('Conv4dClass', [Conv4d_groups, Conv4d_broadcast])
 def test_convNd(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
@@ -80,9 +81,10 @@ def test_convNd(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
     out = torch.roll(out, v, 3)
     out = torch.roll(out, v, 4)
 
+
     diff = torch.abs((out-outPT)).max()
     print(f"convNd max error: {diff:.2g}")
-    assert diff < 1e-6
+    assert diff < 1e-5
 
 
 def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
@@ -125,5 +127,5 @@ def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
 if __name__ == "__main__":
     for conv_type in [Conv4d_broadcast, Conv4d_groups]:
         print(conv_type)
-        test_convNd(inChans=1, outChans=2, L=16, Nd=3, bs=256, ks=4, isBias=True, Conv4dClass=conv_type)
-        compare_time(inChans=1, outChans=2, L=16, Nd=3, bs=256, ks=4, isBias=True, Conv4dClass=conv_type)
+        test_convNd(inChans=1, outChans=2, L=16, Nd=3, bs=256, ks=3, isBias=True, Conv4dClass=conv_type)
+        compare_time(inChans=64, outChans=64, L=16, Nd=3, bs=256, ks=3, isBias=True, Conv4dClass=conv_type)
