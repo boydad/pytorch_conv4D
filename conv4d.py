@@ -92,8 +92,7 @@ class Conv4d_broadcast(nn.Module):
         if self.use_bias:
             resultShape = result.shape
             result = result.view(b, resultShape[1], -1)
-            for k in range(self.out_channels):
-                result[:, k, :] += self.bias[k]
+            result += self.bias.reshape(1, self.out_channels, 1)
             result = result.view(resultShape)
 
         shift = math.ceil(padding[0] / 2)
@@ -194,8 +193,7 @@ class Conv4d_groups(nn.Module):
         if self.use_bias:
             resultShape = result.shape
             result = result.view(b,resultShape[1],-1)
-            for k in range(self.out_channels):
-                result[:,k,:] += self.bias[k]
+            result += self.bias.reshape(1, self.out_channels, 1)
             result =  result.view(resultShape)
 
         shift = math.ceil(padding[0] / 2)

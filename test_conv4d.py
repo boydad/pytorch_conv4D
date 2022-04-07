@@ -10,7 +10,7 @@ import numpy as np
 import scipy.stats as sns
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+torch.set_default_dtype(torch.float64)
 
 def init(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
     def init_broadcast(weights):
@@ -84,7 +84,7 @@ def test_convNd(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
 
     diff = torch.abs((out-outPT)).max()
     print(f"convNd max error: {diff:.2g}")
-    assert diff < 1e-5
+    assert diff < 1e-5, f'err: {diff}'
 
 
 def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
@@ -98,14 +98,14 @@ def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
             "torch.cuda.synchronize(); out = _convPt(_data);torch.cuda.synchronize();",
             globals=locals(), number=10)
         )
-    print("ConvPt Forward time: ", f'{times.mean():3g} pm {sns.sem(times):3g}')
+    print("ConvPt Forward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
 
     times = np.array(
         timeit.repeat(
             "torch.cuda.synchronize(); out = _convNd(_data);torch.cuda.synchronize();",
             globals=locals(), number=10)
         )
-    print("ConvNd Forward time: ", f'{times.mean():3g} pm {sns.sem(times):3g}')
+    print("ConvNd Forward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
 
     times = np.array(
         timeit.repeat(
@@ -113,7 +113,7 @@ def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
             "torch.sum(out, dim=tuple(range(len(out.shape)))).backward(); torch.cuda.synchronize();",
             globals=locals(), number=10)
         )
-    print("ConvPt Forward+Backward time: ", f'{times.mean():3g} pm {sns.sem(times):3g}')
+    print("ConvPt Forward+Backward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
 
     times = np.array(
         timeit.repeat(
@@ -121,7 +121,7 @@ def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
             "torch.sum(out, dim=tuple(range(len(out.shape)))).backward(); torch.cuda.synchronize();",
             globals=locals(), number=10)
         )
-    print("ConvNd Forward+Backward time: ", f'{times.mean():3g} pm {sns.sem(times):3g}')
+    print("ConvNd Forward+Backward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
 
 
 if __name__ == "__main__":
