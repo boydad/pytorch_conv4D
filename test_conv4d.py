@@ -124,8 +124,44 @@ def compare_time(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
     print("ConvNd Forward+Backward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
 
 
+def run_4d_benchmark(inChans, outChans, L, bs, ks, isBias, Conv4dClass):
+    import torch
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
+
+    Nd = 4
+    _data = torch.randn(bs, inChans, *((L,)*Nd)).to(device)
+    _convNd = Conv4dClass(
+        inChans, outChans, Nd=Nd, kernel_size=ks, padding=ks-1, bias=isBias,
+        padding_mode='circular').to(device)
+
+    times = np.array(
+        timeit.repeat(
+            "torch.cuda.synchronize(); out = _convNd(_data);torch.cuda.synchronize();",
+            globals=locals(), number=10)
+        )
+    print("Forward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
+
+    times = np.array(
+        timeit.repeat(
+            "torch.cuda.synchronize(); out = _convNd(_data); "
+            "torch.sum(out, dim=tuple(range(len(out.shape)))).backward(); torch.cuda.synchronize();",
+            globals=locals(), number=10)
+        )
+    print("Forward+Backward time: ", f'{times[1:].mean():3g} pm {sns.sem(times[1:]):3g}')
+
+
 if __name__ == "__main__":
     for conv_type in [Conv4d_broadcast, Conv4d_groups]:
         print(conv_type)
+        print("=======================================")
+        print("--> Bechmark 3D")
         test_convNd(inChans=1, outChans=2, L=16, Nd=3, bs=256, ks=3, isBias=True, Conv4dClass=conv_type)
         compare_time(inChans=64, outChans=64, L=16, Nd=3, bs=256, ks=3, isBias=True, Conv4dClass=conv_type)
+        print("--> Benchmark 4D")
+        print("----> inChannels = 18, outChannels = 32")
+        run_4d_benchmark(inChans=18, outChans=32, L=8, bs=64, ks=3, isBias=True, Conv4dClass=conv_type)
+        print("----> inChannels = 32, outChannels = 32")
+        run_4d_benchmark(inChans=32, outChans=32, L=8, bs=64, ks=3, isBias=True, Conv4dClass=conv_type)
+        print("----> inChannels = 32, outChannels = 48")
+        run_4d_benchmark(inChans=32, outChans=48, L=8, bs=64, ks=3, isBias=True, Conv4dClass=conv_type)
