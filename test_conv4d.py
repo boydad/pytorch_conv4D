@@ -4,7 +4,7 @@ import pytest
 from functools import partial
 import torch
 import torch.nn as nn
-from conv4d import Conv4d_broadcast, Conv4d_groups
+from .conv4d import Conv4d_broadcast, Conv4d_groups
 import timeit
 import numpy as np
 import scipy.stats as sns
