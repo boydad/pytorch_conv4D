@@ -61,9 +61,9 @@ class Conv4d_broadcast(nn.Module):
         size_p = [size_i[i] + self.padding[i] for i in range(len(size_i))]
         input = F.pad(  # Ls padding
             input.reshape(b, -1, *size_i[1:]),
-            np.array(
+            tuple(np.array(
                 [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
-                ).reshape(-1),
+                ).reshape(-1)),
             'circular',
             0
             ).reshape(b, c_i, -1, *size_p[1:])
@@ -156,9 +156,9 @@ class Conv4d_groups(nn.Module):
         size_p = [size_i[i] + self.padding[i] for i in range(len(size_i))]
         input = F.pad(  # Ls padding
             input.reshape(b, -1, *size_i[1:]),
-            np.array(
+            tuple(np.array(
                 [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
-                ).reshape(-1),
+                ).reshape(-1)),
             'circular',
             0
             ).reshape(b, c_i, -1, *size_p[1:])

@@ -1,16 +1,19 @@
 # ks = 2 is not working due to bug in pytorch.nn.conv2d with padding=1
 import math
 import pytest
-from functools import partial
-import torch
-import torch.nn as nn
-from .conv4d import Conv4d_broadcast, Conv4d_groups
 import timeit
 import numpy as np
 import scipy.stats as sns
 
+from functools import partial
+import torch
+import torch.nn as nn
+
+from conv4d import Conv4d_broadcast, Conv4d_groups
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.set_default_dtype(torch.float64)
+
 
 def init(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass):
     def init_broadcast(weights):
