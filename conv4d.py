@@ -17,7 +17,8 @@ class Conv4d_broadcast(nn.Module):
                  bias=True,
                  Nd=4,
                  bias_initializer=None,
-                 kernel_initializer= None):
+                 kernel_initializer= None,
+                 channels_last=False):
         super(Conv4d_broadcast, self).__init__()
 
         assert padding_mode == 'circular' or padding == 0, 'Implemented only for circular or no padding'
@@ -25,13 +26,14 @@ class Conv4d_broadcast(nn.Module):
         assert dilation == 1, "not implemented"
         assert groups == 1, "not implemented"
         assert Nd <= 4, "not implemented"
+        assert Nd > 2, "not implemented"
         assert padding == kernel_size - 1, "works only in circular mode"
 
         if not isinstance(kernel_size, tuple):
             kernel_size = tuple(kernel_size for _ in range(Nd))
         if not isinstance(padding, tuple):
             padding = tuple(padding for _ in range(Nd))
-        self.conv_f = (nn.Conv1d, nn.Conv2d, nn.Conv3d)[Nd - 2]
+        self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
 
         self.out_channels = out_channels
         self.kernel_size = kernel_size
@@ -53,6 +55,11 @@ class Conv4d_broadcast(nn.Module):
             )
             if kernel_initializer is not None:
                 kernel_initializer(conv_layer.weight)
+
+            if channels_last:
+                channels_last = [torch.channels_last, torch.channels_last_3d][Nd-3]
+                conv_layer.to(memory_format=channels_last)
+
             self.conv_layers.append(conv_layer)
 
     def do_padding(self, input):
@@ -114,7 +121,8 @@ class Conv4d_groups(nn.Module):
                  bias: bool = True,
                  Nd: int = 4,
                  bias_initializer=None,
-                 kernel_initializer=None):
+                 kernel_initializer=None,
+                 channels_last=False):
         super(Conv4d_groups, self).__init__()
 
         assert padding_mode == 'circular' or padding == 0, 'Implemented only for circular or no padding'
@@ -147,6 +155,10 @@ class Conv4d_groups(nn.Module):
                                 kernel_size=self.kernel_size[1:],
                                 padding_mode=self.padding_mode,
                                 groups=self.kernel_size[0])
+        if channels_last:
+            channels_last = [torch.channels_last, torch.channels_last_3d][Nd-3]
+            self.conv.to(memory_format=channels_last)
+
         if kernel_initializer is not None:
             kernel_initializer(self.conv.weight)
 
