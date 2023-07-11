@@ -1,5 +1,3 @@
-# ks = 2 is not working due to bug in pytorch.nn.conv2d with padding=1
-import math
 import pytest
 import timeit
 import numpy as np
@@ -9,7 +7,7 @@ from functools import partial
 import torch
 import torch.nn as nn
 
-from conv4d import Conv4d_broadcast, Conv4d_groups
+from .conv4d import Conv4d_broadcast, Conv4d_groups
 
 
 try:
@@ -99,12 +97,6 @@ def test_convNd(inChans, outChans, L, Nd, bs, ks, isBias, Conv4dClass, channels_
     outPT = _convPt(_data)
     out = _convNd(_data)
 
-    # rotate data since padding in torch.conv2D -> (pad, pad)
-    # and in convNd -> (0, 2 * pad) so output will be rotated by pad/2
-    v = math.ceil((ks-1) / 2)
-    out = torch.roll(out, v, 3)
-    out = torch.roll(out, v, 4)
-
     diff = torch.abs((out-outPT)).max()
     print(f"convNd max error: {diff:.2g}")
     assert diff < 1e-5, f'err: {diff}'
@@ -187,10 +179,10 @@ if __name__ == "__main__":
             print(conv_type, '| channels_last =', channels_last)
             print("========================================================")
             print("--> Bechmark 3D")
-            test_convNd(inChans=8, outChans=32, L=16, Nd=3, bs=256, ks=3,
+            test_convNd(inChans=8, outChans=32, L=16, Nd=3, bs=64, ks=3,
                         isBias=True, Conv4dClass=conv_type,
                         channels_last=channels_last)
-            compare_time(inChans=64, outChans=64, L=16, Nd=3, bs=256, ks=3,
+            compare_time(inChans=64, outChans=64, L=16, Nd=3, bs=64, ks=3,
                          isBias=True, Conv4dClass=conv_type,
                          channels_last=channels_last)
             print("--> Benchmark 4D")

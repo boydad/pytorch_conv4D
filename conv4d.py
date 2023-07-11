@@ -21,20 +21,21 @@ class Conv4d_broadcast(nn.Module):
                  channels_last=False):
         super(Conv4d_broadcast, self).__init__()
 
-        assert padding_mode == 'circular' or padding == 0, 'Implemented only for circular or no padding'
+        assert padding_mode == 'circular' or padding == 0 and padding_mode == 'zeros', \
+            'Implemented only for circular or no padding'
         assert stride == 1, "not implemented"
         assert dilation == 1, "not implemented"
         assert groups == 1, "not implemented"
-        assert Nd <= 4, "not implemented"
-        assert Nd > 2, "not implemented"
-        assert padding == kernel_size - 1, "works only in circular mode"
+        assert Nd <= 4 and Nd > 2, "not implemented"
 
-        if not isinstance(kernel_size, tuple):
+        if not isinstance(kernel_size, (tuple, list)):
             kernel_size = tuple(kernel_size for _ in range(Nd))
-        if not isinstance(padding, tuple):
+        if not isinstance(padding, (tuple, list)):
             padding = tuple(padding for _ in range(Nd))
-        self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
+        # assert np.all(np.array(padding) == np.array(kernel_size) - 1), "works only in circular mode"
 
+
+        self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
         self.out_channels = out_channels
         self.kernel_size = kernel_size
         self.padding = padding
@@ -66,15 +67,22 @@ class Conv4d_broadcast(nn.Module):
         (b, c_i) = tuple(input.shape[0:2])
         size_i = tuple(input.shape[2:])
         size_p = [size_i[i] + self.padding[i] for i in range(len(size_i))]
-        input = F.pad(  # Ls padding
-            input.reshape(b, -1, *size_i[1:]),
-            tuple(np.array(
-                [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
-                ).reshape(-1)),
+        padding = tuple(np.array(
+                # todo change to ((padding_size+1)//2, padding_size//2)
+                # [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
+                [((self.padding[i+1]+1)//2, self.padding[i+1]//2) for i in range(len(size_i[1:]))]
+                ).reshape(-1)[::-1])
+        input_tmp = input.reshape(b, -1, *size_i[1:])
+        input2 = F.pad(  # Ls padding
+            input_tmp,
+            padding,
             'circular',
             0
-            ).reshape(b, c_i, -1, *size_p[1:])
-        return input
+            )
+        input3 = input2.reshape(b, c_i, -1, *size_p[1:])
+        # breakpoint()
+
+        return input3
 
     def forward(self, input):
         if self.padding_mode == 'circular':
@@ -85,6 +93,7 @@ class Conv4d_broadcast(nn.Module):
         size_k = self.kernel_size
         padding = list(self.padding)
         size_o = (size_i[0], ) + tuple([size_i[x+1] - size_k[x+1] + 1 for x in range(len(size_i[1:]))])
+        # size_o = tuple([size_i[x] - size_k[x] + 1 for x in range(len(size_i))])
 
         result = torch.zeros((b, self.out_channels) + size_o, device=input.device)
 
@@ -94,7 +103,7 @@ class Conv4d_broadcast(nn.Module):
             output = self.conv_layers[i](cinput)
             output = output.reshape(b, size_i[0], *output.shape[1:])
             output = torch.transpose(output, 1, 2)
-            result += torch.roll(output, -1 * i, 2)
+            result = result + torch.roll(output, -1 * i, 2)
 
         if self.use_bias:
             resultShape = result.shape
@@ -104,7 +113,10 @@ class Conv4d_broadcast(nn.Module):
 
         shift = math.ceil(padding[0] / 2)
         result = torch.roll(result, shift, 2)
-        result = result[:, :, :size_o[0], ]
+        # after we rearranged 3D convolutions we can cut 4th dimention
+        # depending on padding type circular or not
+        dim_size = size_i[0] + self.padding[0] - size_k[0] + 1
+        result = result[:, :, :dim_size, ]
 
         return result
 
@@ -169,7 +181,8 @@ class Conv4d_groups(nn.Module):
         input = F.pad(  # Ls padding
             input.reshape(b, -1, *size_i[1:]),
             tuple(np.array(
-                [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
+                # [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
+                [((self.padding[i+1]+1)//2, self.padding[i+1]//2) for i in range(len(size_i[1:]))]
                 ).reshape(-1)),
             'circular',
             0
