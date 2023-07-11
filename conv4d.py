@@ -68,21 +68,15 @@ class Conv4d_broadcast(nn.Module):
         size_i = tuple(input.shape[2:])
         size_p = [size_i[i] + self.padding[i] for i in range(len(size_i))]
         padding = tuple(np.array(
-                # todo change to ((padding_size+1)//2, padding_size//2)
-                # [(0, self.padding[i+1]) for i in range(len(size_i[1:]))]
                 [((self.padding[i+1]+1)//2, self.padding[i+1]//2) for i in range(len(size_i[1:]))]
                 ).reshape(-1)[::-1])
-        input_tmp = input.reshape(b, -1, *size_i[1:])
-        input2 = F.pad(  # Ls padding
-            input_tmp,
+        input = F.pad(  # Ls padding
+            input.reshape(b, -1, *size_i[1:]),
             padding,
             'circular',
             0
-            )
-        input3 = input2.reshape(b, c_i, -1, *size_p[1:])
-        # breakpoint()
-
-        return input3
+            ).reshape(b, c_i, -1, *size_p[1:])
+        return input
 
     def forward(self, input):
         if self.padding_mode == 'circular':
@@ -93,7 +87,6 @@ class Conv4d_broadcast(nn.Module):
         size_k = self.kernel_size
         padding = list(self.padding)
         size_o = (size_i[0], ) + tuple([size_i[x+1] - size_k[x+1] + 1 for x in range(len(size_i[1:]))])
-        # size_o = tuple([size_i[x] - size_k[x] + 1 for x in range(len(size_i))])
 
         result = torch.zeros((b, self.out_channels) + size_o, device=input.device)
 
