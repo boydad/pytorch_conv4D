@@ -5,20 +5,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 def conv2d_tranpose_test():
-    batch_size = 1
+    batch_size = 2
     in_channels = 2
     out_channels = 3
-    input_size = [2, 2]
-    kernel_size = 2
-    stride = 1
+    input_size = [5, 7]
+    kernel_size = 3
+    stride = 5
     input_2d = torch.randn(batch_size, in_channels, *input_size).to(torch.float64)
     weight_2d = torch.randn(in_channels, out_channels, kernel_size, kernel_size).to(torch.float64)
     
-    # Debug
-    input_2d = torch.ones_like(input_2d)
-    weight_2d = torch.ones_like(weight_2d)
-    weight_2d[...,1,:] = 0
-
     true_result = F.conv_transpose2d(input_2d, weight_2d, 
                 bias=None, stride=stride, padding=0, 
                 output_padding=0, groups=1, dilation=1)
@@ -45,7 +40,7 @@ def conv2d_tranpose_test():
         op_output = op_output.reshape(batch_size, kernel_size, out_channels,
                                       *op_output.shape[2:])
         op_output = op_output.transpose(1, 2)
-        output[:, :, iL:iL+kernel_size] += op_output    
+        output[:, :, iL*stride:iL*stride+kernel_size] += op_output    
     
     assert torch.allclose(true_result, output)
     print("tests passed")    
