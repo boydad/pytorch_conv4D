@@ -9,7 +9,7 @@ class Conv4d_broadcast(nn.Module):
     def __init__(self, in_channels,
                  out_channels,
                  kernel_size,
-                 padding,
+                 padding=None,
                  stride=1,
                  padding_mode='circular',
                  dilation=1,
@@ -21,19 +21,36 @@ class Conv4d_broadcast(nn.Module):
                  channels_last=False):
         super(Conv4d_broadcast, self).__init__()
 
-        assert padding_mode == 'circular' or padding == 0 and padding_mode == 'zeros', \
-            'Implemented only for circular or no padding'
-        assert stride == 1, "not implemented"
-        assert dilation == 1, "not implemented"
-        assert groups == 1, "not implemented"
-        assert Nd <= 4 and Nd > 2, "not implemented"
+        assert stride == 1, 'stride != 1 not implemented'
+        assert dilation == 1, 'dilation != 1 not implemented'
+        assert groups == 1, 'groups != 1 not implemented'
+        assert Nd <= 4, 'Nd > 4 not implemented'
+        assert Nd > 2, 'Nd < 3 not implemented'
 
-        if not isinstance(kernel_size, (tuple, list)):
+        # convert list arguments to tuple for asserts and general consistency
+        if isinstance(kernel_size, list):
+            kernel_size = tuple(kernel_size)
+        if isinstance(padding, list):
+            padding = tuple(padding)
+
+        # create tuple if argument is just a number
+        if not isinstance(kernel_size, tuple):
             kernel_size = tuple(kernel_size for _ in range(Nd))
-        if not isinstance(padding, (tuple, list)):
+        # construct correct padding tuple for given padding_mode
+        if padding is None:
+            if padding_mode == 'circular':
+                padding = tuple(_ks-1 for _ks in kernel_size)
+            else:
+                padding = tuple(0 for _ in kernel_size)
+        # create tuple if argument is just a number
+        if not isinstance(padding, tuple):
             padding = tuple(padding for _ in range(Nd))
-        # assert np.all(np.array(padding) == np.array(kernel_size) - 1), "works only in circular mode"
 
+        assert padding_mode == 'circular' or padding == tuple(0 for _ in padding), \
+            'Non-zero padding currently only supported for circular padding mode.'
+        if padding_mode == 'circular':
+            assert padding == tuple(_ks - 1 for _ks in kernel_size), \
+                'Padding for circular padding_mode must be kernel_size-1. Use padding=None to ensure this automatically.'
 
         self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
         self.out_channels = out_channels
