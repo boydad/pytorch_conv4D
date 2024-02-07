@@ -128,7 +128,7 @@ class Conv4d_groups(nn.Module):
                  bias_initializer=None,
                  kernel_initializer=None,
                  channels_last=False,
-                 dtype=None):
+                 dtype=None, device=None):
         super(Conv4d_groups, self).__init__()
 
         assert padding_mode == 'circular' or padding == 0, 'Implemented only for circular or no padding'
@@ -150,6 +150,7 @@ class Conv4d_groups(nn.Module):
         self.padding_mode = padding_mode
         self.use_bias = bias
         self.dtype = dtype
+        self.device = device
 
         self.bias = nn.Parameter(torch.randn(out_channels)) if bias else self.register_parameter('bias', None)
         if bias_initializer is not None:
@@ -162,7 +163,7 @@ class Conv4d_groups(nn.Module):
                                 kernel_size=self.kernel_size[1:],
                                 padding_mode=self.padding_mode,
                                 groups=self.kernel_size[0],
-                                dtype=self.dtype)
+                                dtype=self.dtype, device=self.device)
         if channels_last:
             channels_last = [torch.channels_last, torch.channels_last_3d][Nd-3]
             self.conv.to(memory_format=channels_last)
