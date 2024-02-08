@@ -9,7 +9,7 @@ class Conv4d_broadcast(nn.Module):
     def __init__(self, in_channels,
                  out_channels,
                  kernel_size,
-                 padding=None,
+                 padding,
                  stride=1,
                  padding_mode='circular',
                  dilation=1,
@@ -36,13 +36,6 @@ class Conv4d_broadcast(nn.Module):
         # create tuple if argument is just a number
         if not isinstance(kernel_size, tuple):
             kernel_size = tuple(kernel_size for _ in range(Nd))
-        # construct correct padding tuple for given padding_mode
-        if padding is None:
-            if padding_mode == 'circular':
-                padding = tuple(_ks-1 for _ks in kernel_size)
-            else:
-                padding = tuple(0 for _ in kernel_size)
-        # create tuple if argument is just a number
         if not isinstance(padding, tuple):
             padding = tuple(padding for _ in range(Nd))
 
@@ -50,7 +43,7 @@ class Conv4d_broadcast(nn.Module):
             'Non-zero padding currently only supported for circular padding mode.'
         if padding_mode == 'circular':
             assert padding == tuple(_ks - 1 for _ks in kernel_size), \
-                'Padding for circular padding_mode must be kernel_size-1. Use padding=None to ensure this automatically.'
+                f'Padding for circular padding_mode must be kernel_size-1. Have padding = {padding} and kernel_size = {kernel_size}.'
 
         self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
         self.out_channels = out_channels
