@@ -42,8 +42,9 @@ class Conv4d_broadcast(nn.Module):
         assert padding_mode == 'circular' or padding == tuple(0 for _ in padding), \
             'Non-zero padding currently only supported for circular padding mode.'
         if padding_mode == 'circular':
-            assert padding == tuple(_ks - 1 for _ks in kernel_size), \
-                f'Padding for circular padding_mode must be kernel_size-1. Have padding = {padding} and kernel_size = {kernel_size}.'
+            for _pd, _ks in zip(padding, kernel_size):
+                assert _pd == _ks-1 or _pd == 0, \
+                    f'Padding for circular padding_mode must be 0 or kernel_size-1. Have padding = {padding} and kernel_size = {kernel_size}.'
 
         self.conv_f = (nn.Conv2d, nn.Conv3d)[Nd - 3]
         self.out_channels = out_channels
